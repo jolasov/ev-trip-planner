@@ -35,9 +35,9 @@ import {
   saveCachedLocation,
   saveMicGranted,
 } from "./storage.js";
-
-export const APP_VERSION = "2.1";
 import { speechSupported, ensureMicAccess, listenForSpeech } from "./voice.js";
+
+export const APP_VERSION = "2.2";
 
 const state = {
   view: "plan",
@@ -754,7 +754,7 @@ function renderVersionBadge() {
 async function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   try {
-    const reg = await navigator.serviceWorker.register("./sw.js?v=10");
+    const reg = await navigator.serviceWorker.register("./sw.js?v=11");
     await reg.update();
     if (reg.waiting) {
       showToast("Update ready — close and reopen the app");
