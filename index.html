@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#1a8cff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="EV Trips" />
+    <title>EV Trip Planner</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icons/icon.svg" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="header">
+        <button id="back-btn" class="icon-btn hidden" type="button" aria-label="Back">
+          ←
+        </button>
+        <div class="header-text">
+          <h1 id="page-title">EV Trip Planner</h1>
+          <p id="page-subtitle">Plan stops · Open in Google Maps</p>
+        </div>
+      </header>
+
+      <main id="main"></main>
+
+      <nav id="bottom-nav" class="bottom-nav hidden">
+        <button id="maps-btn" class="primary-btn" type="button">
+          Open in Google Maps
+        </button>
+        <div class="secondary-actions">
+          <button id="return-maps-btn" class="secondary-btn" type="button">
+            Return trip → Maps
+          </button>
+          <button id="copy-link-btn" class="secondary-btn" type="button">
+            Copy link
+          </button>
+        </div>
+      </nav>
+    </div>
+
+    <div id="toast" class="toast hidden" role="status"></div>
+
+    <dialog id="stop-dialog">
+      <form id="stop-form" method="dialog">
+        <h2 id="stop-dialog-title">Add stop</h2>
+        <label>
+          Label
+          <input id="stop-label" name="label" type="text" placeholder="e.g. EA Cambridge" required />
+        </label>
+        <label>
+          Address
+          <input
+            id="stop-address"
+            name="address"
+            type="text"
+            placeholder="Full street address"
+            required
+            autocomplete="street-address"
+          />
+        </label>
+        <label>
+          Stop type
+          <select id="stop-type" name="type">
+            <option value="start">Start</option>
+            <option value="charge">EV charge stop</option>
+            <option value="waypoint">Waypoint</option>
+            <option value="destination">Destination</option>
+          </select>
+        </label>
+        <label id="network-label">
+          Charging network
+          <select id="stop-network" name="network">
+            <option value="">—</option>
+            <option value="ea">Electrify America</option>
+            <option value="chargepoint">ChargePoint</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label>
+          Notes (optional)
+          <textarea id="stop-notes" name="notes" rows="2" placeholder="Charge to 85%, 85% cap, etc."></textarea>
+        </label>
+        <div class="dialog-actions">
+          <button type="button" id="stop-cancel" class="secondary-btn">Cancel</button>
+          <button type="submit" class="primary-btn">Save stop</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>
