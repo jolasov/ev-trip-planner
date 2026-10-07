@@ -35,7 +35,7 @@ import {
   saveCachedLocation,
 } from "./storage.js";
 
-export const APP_VERSION = "1.9";
+export const APP_VERSION = "2.0";
 import { speechSupported, listenForSpeech } from "./voice.js";
 
 const state = {
@@ -623,23 +623,19 @@ function renderSaved() {
 
 function updateBottomNav() {
   const nav = $("#bottom-nav");
-  const planActions = $("#plan-actions");
   if (!nav) return;
 
-  if (state.view === "plan") {
-    nav.classList.remove("hidden");
-    const hasDraft = !!state.draft;
-    planActions?.classList.toggle("hidden", !hasDraft);
-    if (hasDraft) {
-      const commit = $("#commit-btn");
-      const saveBtn = $("#save-plan-btn");
-      const valid = state.draft.validation?.valid;
-      commit.disabled = !valid;
-      saveBtn.disabled = !valid;
-      commit.textContent = valid ? "Maps" : "Fix plan";
-    }
-  } else {
-    nav.classList.add("hidden");
+  const show = state.view === "plan" && !!state.draft;
+  nav.classList.toggle("hidden", !show);
+  document.body.classList.toggle("bottom-nav-visible", show);
+
+  if (show) {
+    const commit = $("#commit-btn");
+    const saveBtn = $("#save-plan-btn");
+    const valid = state.draft.validation?.valid;
+    commit.disabled = !valid;
+    saveBtn.disabled = !valid;
+    commit.textContent = valid ? "Maps" : "Fix plan";
   }
 }
 
@@ -733,8 +729,6 @@ function init() {
 
   $("#commit-btn").addEventListener("click", commitPlan);
   $("#save-plan-btn").addEventListener("click", savePlanOnly);
-  $("#goto-saved-btn")?.addEventListener("click", goToSavedTab);
-  $("#scroll-top-nav")?.addEventListener("click", scrollToTop);
   $("#scroll-top-btn")?.addEventListener("click", scrollToTop);
   window.addEventListener("scroll", updateScrollFab, { passive: true });
 
@@ -751,7 +745,7 @@ function renderVersionBadge() {
 async function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   try {
-    const reg = await navigator.serviceWorker.register("./sw.js?v=8");
+    const reg = await navigator.serviceWorker.register("./sw.js?v=9");
     await reg.update();
     if (reg.waiting) {
       showToast("Update ready — close and reopen the app");
