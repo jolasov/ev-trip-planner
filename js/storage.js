@@ -1,11 +1,17 @@
 const TRIPS_KEY = "ev-trip-planner-trips-v2";
-const SETTINGS_KEY = "ev-trip-planner-settings-v2";
+const SETTINGS_KEY = "ev-trip-planner-settings-v3";
 const DRAFT_KEY = "ev-trip-planner-draft-v2";
 
 export function loadSettings(defaults) {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    return raw ? { ...defaults, ...JSON.parse(raw) } : { ...defaults };
+    if (!raw) return { ...defaults };
+    const saved = JSON.parse(raw);
+    return {
+      ...defaults,
+      ...saved,
+      networks: { ...defaults.networks, ...(saved.networks ?? {}) },
+    };
   } catch {
     return { ...defaults };
   }

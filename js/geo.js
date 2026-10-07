@@ -114,7 +114,7 @@ out center tags;
 
     const tags = el.tags ?? {};
     const network = detectNetwork(tags);
-    if (!enabled.has(network)) continue;
+    if (!network || !enabled.has(network)) continue;
 
     const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
     if (seen.has(key)) continue;

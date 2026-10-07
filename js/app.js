@@ -6,6 +6,8 @@ import {
   googleMapsDirUrl,
   uid,
   clamp,
+  CHARGE_NETWORKS,
+  networkShort,
 } from "./util.js";
 import {
   geocode,
@@ -72,12 +74,14 @@ function readFormParams() {
     minArrivalSoc: parseInt($("#min-arrival").value, 10),
     minDestinationSoc: parseInt($("#min-dest").value, 10),
     chargeMinPerStop: parseInt($("#charge-minutes").value, 10),
-    networks: {
-      ea: $("#net-ea").checked,
-      chargepoint: $("#net-cp").checked,
-      other: $("#net-other").checked,
-    },
+    networks: Object.fromEntries(
+      CHARGE_NETWORKS.map((n) => [`${n.id}`, $(`#net-${n.id}`)?.checked ?? false])
+    ),
   };
+}
+
+function anyNetworkSelected(networks) {
+  return CHARGE_NETWORKS.some((n) => networks[n.id]);
 }
 
 function persistSettingsFromForm() {
@@ -124,7 +128,7 @@ async function findRouteAndChargers() {
     showToast("Enter start and destination");
     return;
   }
-  if (!params.networks.ea && !params.networks.chargepoint && !params.networks.other) {
+  if (!anyNetworkSelected(params.networks)) {
     showToast("Select at least one charging network");
     return;
   }
@@ -323,9 +327,13 @@ function renderPlanForm() {
     <section class="card">
       <h2 class="card-title">Charging preferences</h2>
       <div class="checks">
-        <label><input id="net-ea" type="checkbox" ${s.networks.ea ? "checked" : ""} /> Electrify America</label>
-        <label><input id="net-cp" type="checkbox" ${s.networks.chargepoint ? "checked" : ""} /> ChargePoint</label>
-        <label><input id="net-other" type="checkbox" ${s.networks.other ? "checked" : ""} /> Other (OSM)</label>
+        ${CHARGE_NETWORKS.map(
+          (n) => `
+        <label>
+          <input id="net-${n.id}" type="checkbox" ${s.networks[n.id] ? "checked" : ""} />
+          <span>${escapeHtml(n.label)}${n.hint ? `<span class="network-hint">${escapeHtml(n.hint)}</span>` : ""}</span>
+        </label>`
+        ).join("")}
       </div>
       <label class="field slider-field">
         <span>Max detour off route <strong id="max-detour-val">${s.maxDetourMi} mi</strong></span>
@@ -357,7 +365,7 @@ function renderResults() {
           <input type="checkbox" data-id="${c.id}" ${on ? "checked" : ""} />
           <div class="candidate-body">
             <strong>${escapeHtml(c.name)}</strong>
-            <span class="badge badge-${c.network}">${escapeHtml(c.network === "ea" ? "EA" : c.network === "chargepoint" ? "CP" : "Other")}</span>
+            <span class="badge badge-${c.network}">${escapeHtml(networkShort(c.network))}</span>
             <p>Mile ${Math.round(c.routeMi)} on route · ${c.detourMi.toFixed(1)} mi detour${arrivalPreview != null ? ` · arrive ~${formatPct(arrivalPreview)}` : ""}</p>
           </div>
         </label>`;
@@ -447,12 +455,6 @@ function updateBottomNav() {
 
 function render() {
   const main = $("#main");
-  const title = $("#page-title");
-  const sub = $("#page-subtitle");
-
-  title.textContent = state.view === "plan" ? "Plan a trip" : "Saved trips";
-  sub.textContent =
-    state.view === "plan" ? "Conservative EV routing" : `${state.trips.length} committed`;
 
   if (state.view === "plan") {
     main.innerHTML = renderPlanForm() + renderResults();

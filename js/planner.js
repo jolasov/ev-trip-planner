@@ -1,4 +1,4 @@
-import { clamp, formatMi, formatMin, formatPct } from "./util.js";
+import { clamp, formatMi, formatMin, formatPct, defaultNetworkPrefs } from "./util.js";
 
 export const DEFAULT_SETTINGS = {
   homeShortcut: "4800 Bofield Dr, Kettering, OH 45440",
@@ -11,7 +11,7 @@ export const DEFAULT_SETTINGS = {
   rangeComfortMi: 160,
   maxDetourMi: 5,
   chargeMinPerStop: 22,
-  networks: { ea: true, chargepoint: true, other: false },
+  networks: defaultNetworkPrefs(),
 };
 
 export function socAfterLegMi(soc, legMi, fullRangeMi) {
@@ -61,10 +61,7 @@ export function autoSelectStops(candidates, routeTotalMi, params) {
 }
 
 function networkPenalty(network, params) {
-  if (network === "ea" && params.networks.ea) return 0;
-  if (network === "chargepoint" && params.networks.chargepoint) return 0;
-  if (network === "other" && params.networks.other) return 2;
-  return 10;
+  return params.networks[network] ? 0 : 10;
 }
 
 export function validatePlan({ start, end, route, selectedStops, params }) {

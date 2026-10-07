@@ -86,6 +86,24 @@ export function routeDistanceAtPoint(polyline, cumDist, point) {
   return best;
 }
 
+export const CHARGE_NETWORKS = [
+  { id: "ea", label: "Electrify America", short: "EA", defaultOn: true },
+  { id: "chargepoint", label: "ChargePoint", short: "CP", defaultOn: true },
+  { id: "evgo", label: "EVgo", short: "EVgo", defaultOn: false },
+  {
+    id: "tesla",
+    label: "Tesla Supercharger",
+    short: "Tesla",
+    defaultOn: false,
+    hint: "CCS adapter required on Ioniq 5",
+  },
+  { id: "bppulse", label: "BP Pulse", short: "BP Pulse", defaultOn: false },
+];
+
+export function defaultNetworkPrefs() {
+  return Object.fromEntries(CHARGE_NETWORKS.map((n) => [n.id, n.defaultOn]));
+}
+
 export function detectNetwork(tags = {}) {
   const blob = [tags.operator, tags.brand, tags.network, tags.name, tags["operator:wikidata"]]
     .filter(Boolean)
@@ -93,13 +111,20 @@ export function detectNetwork(tags = {}) {
     .toLowerCase();
   if (/electrify\s*america|\bea\b/.test(blob)) return "ea";
   if (/chargepoint|\bcp\b/.test(blob)) return "chargepoint";
-  return "other";
+  if (/evgo/.test(blob)) return "evgo";
+  if (/tesla|supercharger/.test(blob)) return "tesla";
+  if (/bp\s*pulse|bppulse|bp\s*pulse/.test(blob)) return "bppulse";
+  return null;
 }
 
 export function networkLabel(code) {
-  return (
-    { ea: "Electrify America", chargepoint: "ChargePoint", other: "Other" }[code] ?? "Other"
-  );
+  const hit = CHARGE_NETWORKS.find((n) => n.id === code);
+  return hit?.label ?? code;
+}
+
+export function networkShort(code) {
+  const hit = CHARGE_NETWORKS.find((n) => n.id === code);
+  return hit?.short ?? code;
 }
 
 export function googleMapsDirUrl(stops) {
