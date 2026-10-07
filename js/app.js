@@ -37,7 +37,7 @@ import {
 } from "./storage.js";
 import { speechSupported, ensureMicAccess, listenForSpeech } from "./voice.js";
 
-export const APP_VERSION = "2.2";
+export const APP_VERSION = "2.3";
 
 const state = {
   view: "plan",
@@ -754,7 +754,7 @@ function renderVersionBadge() {
 async function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   try {
-    const reg = await navigator.serviceWorker.register("./sw.js?v=11");
+    const reg = await navigator.serviceWorker.register("./sw.js?v=12");
     await reg.update();
     if (reg.waiting) {
       showToast("Update ready — close and reopen the app");
