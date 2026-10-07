@@ -30,7 +30,9 @@ import {
   saveDraft,
   loadTrips,
   saveCommittedTrip,
+  deleteTrip,
 } from "./storage.js";
+import { speechSupported, listenForSpeech } from "./voice.js";
 
 const state = {
   view: "plan",
@@ -206,6 +208,14 @@ function getPlanningLeg() {
   return { posMi, soc, selected };
 }
 
+function sortCandidatesForPick(list) {
+  return list.sort((a, b) => {
+    const byDetour = a.detourMi - b.detourMi;
+    if (Math.abs(byDetour) > 0.01) return byDetour;
+    return previewArrivalForNext(a) - previewArrivalForNext(b);
+  });
+}
+
 function getNextCandidates() {
   if (!state.draft) return [];
   const { posMi, soc } = getPlanningLeg();
@@ -215,10 +225,11 @@ function getNextCandidates() {
   const maxMi = posMi + maxReach * 0.95;
   const picked = new Set(state.draft.selectedIds);
 
-  return state.draft.candidates
+  const pool = state.draft.candidates
     .filter((c) => !picked.has(c.id))
-    .filter((c) => c.routeMi >= minMi && c.routeMi <= maxMi)
-    .sort((a, b) => a.routeMi - b.routeMi || a.detourMi - b.detourMi);
+    .filter((c) => c.routeMi >= minMi && c.routeMi <= maxMi);
+
+  return sortCandidatesForPick(pool);
 }
 
 function canReachDestinationNow() {
@@ -359,6 +370,49 @@ async function setStartFromHere() {
   }
 }
 
+async function fillFieldFromVoice(field) {
+  if (!speechSupported()) {
+    showToast("Voice needs Chrome (not all iOS browsers)");
+    return;
+  }
+  try {
+    showToast("Listening…");
+    const text = await listenForSpeech();
+    const input = field === "start" ? $("#start-input") : $("#end-input");
+    if (input) input.value = text;
+    showToast("Got it");
+  } catch (err) {
+    showToast(err.message || "Voice failed");
+  }
+}
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function goToSavedTab() {
+  state.trips = loadTrips();
+  state.view = "saved";
+  render();
+  scrollToTop();
+}
+
+function handleDeleteTrip(tripId) {
+  const trip = state.trips.find((t) => t.id === tripId);
+  if (!trip) return;
+  if (!confirm(`Delete "${trip.name}"?`)) return;
+  deleteTrip(tripId);
+  state.trips = loadTrips();
+  render();
+  showToast("Trip deleted");
+}
+
+function updateScrollFab() {
+  const fab = $("#scroll-top-btn");
+  if (!fab) return;
+  fab.classList.toggle("hidden", window.scrollY < 180);
+}
+
 function renderPlanForm() {
   const s = state.settings;
   const maxReach = maxLegMiFromSoc(
@@ -371,12 +425,24 @@ function renderPlanForm() {
     <section class="card">
       <label class="field">
         <span>Start</span>
-        <input id="start-input" type="text" placeholder="Address or place" value="${escapeHtml(defaultStartAddress())}" autocomplete="street-address" />
-        <button type="button" class="current-btn" id="current-btn">Current</button>
+        <div class="input-action-row">
+          <input id="start-input" type="text" placeholder="Address or place" value="${escapeHtml(defaultStartAddress())}" autocomplete="street-address" />
+          <button type="button" class="icon-btn" id="current-btn" aria-label="Use current location" title="You are here">
+            <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg>
+          </button>
+          <button type="button" class="icon-btn" data-voice="start" aria-label="Speak start address" title="Voice input">
+            <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+          </button>
+        </div>
       </label>
       <label class="field">
         <span>Destination</span>
-        <input id="end-input" type="text" placeholder="Where are you going?" value="${escapeHtml(state.draft?.end?.address || "")}" autocomplete="street-address" />
+        <div class="input-action-row">
+          <input id="end-input" type="text" placeholder="Where are you going?" value="${escapeHtml(state.draft?.end?.address || "")}" autocomplete="street-address" />
+          <button type="button" class="icon-btn" data-voice="end" aria-label="Speak destination" title="Voice input">
+            <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+          </button>
+        </div>
       </label>
     </section>
 
@@ -533,6 +599,7 @@ function renderSaved() {
         <button class="primary-btn" data-open="${t.id}">Open in Maps</button>
         <button class="secondary-btn" data-return="${t.id}">Return → Maps</button>
       </div>
+      <button class="delete-btn" type="button" data-delete="${t.id}">Delete</button>
     </article>`
     )
     .join("");
@@ -540,17 +607,24 @@ function renderSaved() {
 
 function updateBottomNav() {
   const nav = $("#bottom-nav");
+  const planActions = $("#plan-actions");
   if (!nav) return;
-  const show = state.view === "plan" && state.draft;
-  nav.classList.toggle("hidden", !show);
-  if (!show) return;
 
-  const commit = $("#commit-btn");
-  const saveBtn = $("#save-plan-btn");
-  const valid = state.draft.validation?.valid;
-  commit.disabled = !valid;
-  saveBtn.disabled = !valid;
-  commit.textContent = valid ? "Open in Google Maps" : "Fix plan first";
+  if (state.view === "plan") {
+    nav.classList.remove("hidden");
+    const hasDraft = !!state.draft;
+    planActions?.classList.toggle("hidden", !hasDraft);
+    if (hasDraft) {
+      const commit = $("#commit-btn");
+      const saveBtn = $("#save-plan-btn");
+      const valid = state.draft.validation?.valid;
+      commit.disabled = !valid;
+      saveBtn.disabled = !valid;
+      commit.textContent = valid ? "Open in Google Maps" : "Fix plan first";
+    }
+  } else {
+    nav.classList.add("hidden");
+  }
 }
 
 function render() {
@@ -588,6 +662,10 @@ function bindPlanEvents() {
   $("#find-btn")?.addEventListener("click", findRouteAndChargers);
   $("#road-reset-btn")?.addEventListener("click", resetFromRoad);
 
+  document.querySelectorAll("[data-voice]").forEach((btn) => {
+    btn.addEventListener("click", () => fillFieldFromVoice(btn.dataset.voice));
+  });
+
   document.querySelectorAll("[data-pick]").forEach((btn) => {
     btn.addEventListener("click", () => selectNextCandidate(btn.dataset.pick));
   });
@@ -620,6 +698,9 @@ function bindSavedEvents() {
       if (url) window.open(url, "_blank", "noopener,noreferrer");
     });
   });
+  document.querySelectorAll("[data-delete]").forEach((btn) => {
+    btn.addEventListener("click", () => handleDeleteTrip(btn.dataset.delete));
+  });
 }
 
 function init() {
@@ -630,15 +711,16 @@ function init() {
   $("#tab-plan").addEventListener("click", () => {
     state.view = "plan";
     render();
+    scrollToTop();
   });
-  $("#tab-saved").addEventListener("click", () => {
-    state.trips = loadTrips();
-    state.view = "saved";
-    render();
-  });
+  $("#tab-saved").addEventListener("click", () => goToSavedTab());
 
   $("#commit-btn").addEventListener("click", commitPlan);
   $("#save-plan-btn").addEventListener("click", savePlanOnly);
+  $("#goto-saved-btn")?.addEventListener("click", goToSavedTab);
+  $("#scroll-top-nav")?.addEventListener("click", scrollToTop);
+  $("#scroll-top-btn")?.addEventListener("click", scrollToTop);
+  window.addEventListener("scroll", updateScrollFab, { passive: true });
 
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js").catch(() => {});

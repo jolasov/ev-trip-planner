@@ -100,8 +100,15 @@ body {
   color: var(--text);
 }
 
-.field input[type="text"] {
-  width: 100%;
+.input-action-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.input-action-row input[type="text"] {
+  flex: 1;
+  min-width: 0;
   padding: 14px;
   border-radius: var(--radius);
   border: 2px solid var(--border-strong);
@@ -111,30 +118,34 @@ body {
   font-size: 1rem;
 }
 
-.field input[type="text"]:focus {
+.input-action-row input[type="text"]:focus {
   outline: 3px solid #2491ff;
   outline-offset: 1px;
   border-color: var(--accent);
 }
 
-.current-btn {
-  width: 100%;
-  margin-top: 10px;
-  padding: 13px 16px;
+.icon-btn {
+  flex-shrink: 0;
+  width: 48px;
+  padding: 0;
   border-radius: var(--radius);
   border: 2px solid var(--border-strong);
   background: var(--surface-2);
-  color: var(--text);
-  font: inherit;
-  font-weight: 700;
-  font-size: 1rem;
+  color: var(--accent);
   cursor: pointer;
+  display: grid;
+  place-items: center;
 }
 
-.current-btn:active {
+.icon-btn:active {
   background: #dfe1e2;
   border-color: var(--accent);
-  color: var(--accent);
+}
+
+.icon-svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
 }
 
 .slider-field input[type="range"] {
@@ -408,10 +419,56 @@ body {
   bottom: 0;
   max-width: 640px;
   margin: 0 auto;
-  padding: 14px 16px calc(14px + var(--safe-bottom));
+  padding: 12px 16px calc(12px + var(--safe-bottom));
   background: #ffffff;
   border-top: 2px solid var(--border);
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+}
+
+#plan-actions.hidden {
+  display: none;
+}
+
+#plan-actions .secondary-btn {
+  margin-top: 8px;
+}
+
+.bottom-quick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(150px + var(--safe-bottom));
+  z-index: 25;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  border: 2px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.25rem;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+
+.delete-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px;
+  border: 2px solid #fca5a5;
+  border-radius: var(--radius);
+  background: #fff5f5;
+  color: var(--danger);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  cursor: pointer;
 }
 
 .loading {

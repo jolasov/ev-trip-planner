@@ -1,4 +1,4 @@
-const CACHE = "ev-trip-planner-v6";
+const CACHE = "ev-trip-planner-v7";
 const ASSETS = [
   "./",
   "./index.html",
@@ -9,6 +9,7 @@ const ASSETS = [
   "./js/planner.js",
   "./js/storage.js",
   "./js/util.js",
+  "./js/voice.js",
   "./icons/icon.svg",
 ];
 

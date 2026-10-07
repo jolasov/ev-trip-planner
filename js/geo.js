@@ -68,7 +68,39 @@ export async function fetchRoute(waypoints) {
 }
 
 function uidFromCoords(lat, lon) {
-  return `cs-${lat.toFixed(4)}-${lon.toFixed(4)}`;
+  return `cs-${lat.toFixed(3)}-${lon.toFixed(3)}`;
+}
+
+function normalizeStationName(name) {
+  return String(name ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+export function dedupeStations(stations) {
+  const kept = [];
+
+  for (const station of stations) {
+    const duplicate = kept.find((existing) => {
+      const dist = haversineMi(existing, station);
+      if (dist < 0.35) return true;
+      const a = normalizeStationName(existing.name);
+      const b = normalizeStationName(station.name);
+      return a && a === b && dist < 1.5;
+    });
+
+    if (!duplicate) {
+      kept.push(station);
+      continue;
+    }
+
+    if (station.detourMi != null && station.detourMi < duplicate.detourMi) {
+      Object.assign(duplicate, station, { id: duplicate.id });
+    }
+  }
+
+  return kept;
 }
 
 function pointAtDistance(polyline, cum, targetMi) {
@@ -190,18 +222,20 @@ export async function fetchChargingCandidates(polyline, { maxDetourMi, networks 
 export function enrichCandidates(candidates, polyline, maxDetourMi) {
   const cum = buildCumulativeDistances(polyline);
 
-  return candidates
+  const enriched = candidates
     .map((c) => {
       const snap = routeDistanceAtPoint(polyline, cum, c);
       return {
         ...c,
+        id: uidFromCoords(c.lat, c.lon),
         routeMi: snap.distAlong,
         detourMi: snap.offRoute,
         mapLabel: `${c.name} (${networkLabel(c.network)})`,
       };
     })
-    .filter((c) => c.detourMi <= maxDetourMi)
-    .sort((a, b) => a.routeMi - b.routeMi);
+    .filter((c) => c.detourMi <= maxDetourMi);
+
+  return dedupeStations(enriched).sort((a, b) => a.routeMi - b.routeMi);
 }
 
 export async function getCurrentPosition() {

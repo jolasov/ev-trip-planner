@@ -56,3 +56,7 @@ export function saveCommittedTrip(trip) {
   trips.unshift(trip);
   saveTrips(trips.slice(0, 30));
 }
+
+export function deleteTrip(tripId) {
+  saveTrips(loadTrips().filter((t) => t.id !== tripId));
+}
