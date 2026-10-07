@@ -71,15 +71,6 @@ body {
   box-shadow: 0 1px 3px rgba(26, 35, 50, 0.06);
 }
 
-.card-title {
-  margin: 0 0 12px;
-  font-size: 0.78rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 700;
-}
-
 .field {
   display: block;
   margin-bottom: 12px;
@@ -142,14 +133,6 @@ body {
 .checks input {
   margin-top: 3px;
   accent-color: var(--accent);
-}
-
-.network-hint {
-  display: block;
-  margin-top: 2px;
-  font-size: 0.78rem;
-  color: var(--muted);
-  font-weight: 400;
 }
 
 .primary-btn,
@@ -220,77 +203,101 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 360px;
+  max-height: 320px;
   overflow: auto;
 }
 
-.candidate {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 10px;
+.candidate-pick {
+  width: 100%;
+  text-align: left;
+  padding: 12px;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
 }
 
-.candidate.selected {
+.candidate-pick:active {
+  background: rgba(21, 101, 216, 0.08);
   border-color: rgba(21, 101, 216, 0.45);
-  background: rgba(21, 101, 216, 0.06);
 }
 
-.candidate input {
-  margin-top: 4px;
-  width: 18px;
-  height: 18px;
-  accent-color: var(--accent);
-}
-
-.candidate-body strong {
-  display: inline;
+.candidate-pick strong {
+  display: block;
   font-size: 0.92rem;
 }
 
-.candidate-body p {
+.candidate-pick p {
   margin: 4px 0 0;
   font-size: 0.8rem;
   color: var(--muted);
   line-height: 1.35;
 }
 
-.badge {
-  display: inline-flex;
-  margin-left: 6px;
-  padding: 2px 7px;
+.chain-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chain-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: start;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.chain-num {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
   border-radius: 999px;
-  font-size: 0.68rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 0.78rem;
   font-weight: 700;
-  vertical-align: middle;
+  color: var(--muted);
 }
 
-.badge-ea {
-  background: #dcfce7;
-  color: #166534;
+.chain-body strong {
+  font-size: 0.92rem;
 }
 
-.badge-chargepoint {
-  background: #e0f2fe;
-  color: #0369a1;
+.chain-body p {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
 }
 
-.badge-evgo {
-  background: #fef3c7;
-  color: #92400e;
+.chain-undo {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--danger);
+  font: inherit;
+  cursor: pointer;
 }
 
-.badge-tesla {
-  background: #fee2e2;
-  color: #991b1b;
+.leg-label {
+  margin: 0 0 10px;
+  font-size: 0.88rem;
+  font-weight: 700;
 }
 
-.badge-bppulse {
-  background: #ffedd5;
-  color: #9a3412;
+.muted-inline {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.4;
 }
 
 .timeline {

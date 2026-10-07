@@ -7,7 +7,6 @@ import {
   uid,
   clamp,
   CHARGE_NETWORKS,
-  networkShort,
 } from "./util.js";
 import {
   geocode,
@@ -19,10 +18,10 @@ import {
 } from "./geo.js";
 import {
   DEFAULT_SETTINGS,
-  autoSelectStops,
   validatePlan,
   buildCommittedStops,
   maxLegMiFromSoc,
+  socAfterLegMi,
 } from "./planner.js";
 import {
   loadSettings,
@@ -144,16 +143,13 @@ async function findRouteAndChargers() {
     const raw = await fetchChargingCandidates(route.polyline, params);
     const candidates = enrichCandidates(raw, route.polyline, params.maxDetourMi);
 
-    const auto = autoSelectStops(candidates, route.totalMi, params);
-    const selectedIds = new Set(auto.map((s) => s.id));
-
     state.draft = {
       id: uid(),
       start,
       end,
       route,
       candidates,
-      selectedIds: [...selectedIds],
+      selectedIds: [],
       params: { ...state.settings, startSoc: params.startSoc },
       createdAt: new Date().toISOString(),
     };
@@ -161,7 +157,10 @@ async function findRouteAndChargers() {
     revalidate();
     saveDraft(state.draft);
     render();
-    showToast(`${candidates.length} chargers found · ${auto.length} auto-selected`);
+    const nextCount = getNextCandidates().length;
+    showToast(
+      `${candidates.length} chargers found · ${nextCount} option${nextCount === 1 ? "" : "s"} for stop 1`
+    );
   } catch (err) {
     state.error = err.message || "Something went wrong";
     render();
@@ -186,34 +185,83 @@ function revalidate() {
   saveDraft(state.draft);
 }
 
-function toggleCandidate(id) {
-  if (!state.draft) return;
-  const set = new Set(state.draft.selectedIds);
-  if (set.has(id)) set.delete(id);
-  else set.add(id);
-  state.draft.selectedIds = [...set];
-  revalidate();
-  renderResults();
-  updateBottomNav();
+function getOrderedSelected() {
+  if (!state.draft) return [];
+  return state.draft.selectedIds
+    .map((id) => state.draft.candidates.find((c) => c.id === id))
+    .filter(Boolean)
+    .sort((a, b) => a.routeMi - b.routeMi);
 }
 
-function commitPlan() {
-  if (!state.draft?.validation?.valid) {
-    showToast("Fix plan issues before committing");
+function getPlanningLeg() {
+  const selected = getOrderedSelected();
+  const params = state.draft.params;
+  let posMi = 0;
+  let soc = params.startSoc;
+  if (selected.length) {
+    const last = selected[selected.length - 1];
+    posMi = last.routeMi;
+    soc = params.chargeTargetSoc;
+  }
+  return { posMi, soc, selected };
+}
+
+function getNextCandidates() {
+  if (!state.draft) return [];
+  const { posMi, soc } = getPlanningLeg();
+  const params = state.draft.params;
+  const maxReach = maxLegMiFromSoc(soc, params.fullRangeMi, params.rangeComfortMi);
+  const minMi = posMi + 12;
+  const maxMi = posMi + maxReach * 0.95;
+  const picked = new Set(state.draft.selectedIds);
+
+  return state.draft.candidates
+    .filter((c) => !picked.has(c.id))
+    .filter((c) => c.routeMi >= minMi && c.routeMi <= maxMi)
+    .sort((a, b) => a.routeMi - b.routeMi || a.detourMi - b.detourMi);
+}
+
+function canReachDestinationNow() {
+  if (!state.draft) return false;
+  const { posMi, soc } = getPlanningLeg();
+  const remaining = state.draft.route.totalMi - posMi;
+  const maxReach = maxLegMiFromSoc(
+    soc,
+    state.draft.params.fullRangeMi,
+    state.draft.params.rangeComfortMi
+  );
+  return remaining <= maxReach * 0.95;
+}
+
+function selectNextCandidate(id) {
+  if (!state.draft) return;
+  const pick = state.draft.candidates.find((c) => c.id === id);
+  if (!pick) return;
+
+  const feasible = getNextCandidates();
+  if (!feasible.some((c) => c.id === id)) {
+    showToast("That stop is out of range for this leg");
     return;
   }
-  const selected = state.draft.candidates
-    .filter((c) => state.draft.selectedIds.includes(c.id))
-    .sort((a, b) => a.routeMi - b.routeMi);
 
+  state.draft.selectedIds.push(id);
+  revalidate();
+  render();
+}
+
+function undoFromStop(id) {
+  if (!state.draft) return;
+  const idx = state.draft.selectedIds.indexOf(id);
+  if (idx < 0) return;
+  state.draft.selectedIds = state.draft.selectedIds.slice(0, idx);
+  revalidate();
+  render();
+}
+
+function buildTripRecord() {
+  const selected = getOrderedSelected();
   const stops = buildCommittedStops(state.draft.start, state.draft.end, selected);
-  const url = googleMapsDirUrl(stops);
-  if (!url) {
-    showToast("Could not build Maps URL");
-    return;
-  }
-
-  const trip = {
+  return {
     id: uid(),
     name: `${state.draft.start.label} → ${state.draft.end.label}`,
     stops,
@@ -221,9 +269,31 @@ function commitPlan() {
     summary: state.draft.validation.summary,
     committedAt: new Date().toISOString(),
   };
+}
+
+function savePlanOnly() {
+  if (!state.draft?.validation?.valid) {
+    showToast("Fix plan issues before saving");
+    return;
+  }
+  saveCommittedTrip(buildTripRecord());
+  state.trips = loadTrips();
+  showToast("Plan saved");
+}
+
+function commitPlan() {
+  if (!state.draft?.validation?.valid) {
+    showToast("Fix plan issues before committing");
+    return;
+  }
+  const trip = buildTripRecord();
+  const url = googleMapsDirUrl(trip.stops);
+  if (!url) {
+    showToast("Could not build Maps URL");
+    return;
+  }
   saveCommittedTrip(trip);
   state.trips = loadTrips();
-
   window.open(url, "_blank", "noopener,noreferrer");
   showToast("Plan saved · opening Google Maps");
 }
@@ -271,6 +341,24 @@ function applyHomeShortcut() {
   $("#start-input").value = state.settings.homeShortcut;
 }
 
+async function setStartFromHere() {
+  setLoading(true, "Getting location…");
+  try {
+    const pos = await getCurrentPosition();
+    const loc = await reverseGeocode(pos.lat, pos.lon);
+    $("#start-input").value = loc.address;
+    if (state.draft) {
+      state.draft.start = loc;
+      saveDraft(state.draft);
+    }
+    showToast("Start set to current location");
+  } catch (err) {
+    showToast(err.message || "Could not get location");
+  } finally {
+    setLoading(false);
+  }
+}
+
 function renderPlanForm() {
   const s = state.settings;
   const maxReach = maxLegMiFromSoc(
@@ -281,12 +369,12 @@ function renderPlanForm() {
 
   return `
     <section class="card">
-      <h2 class="card-title">Route</h2>
       <label class="field">
         <span>Start</span>
-        <div class="input-row">
-          <input id="start-input" type="text" placeholder="Address or place" value="${escapeHtml(state.draft?.start?.address || "")}" autocomplete="street-address" />
+        <input id="start-input" type="text" placeholder="Address or place" value="${escapeHtml(state.draft?.start?.address || "")}" autocomplete="street-address" />
+        <div class="chip-row">
           <button type="button" class="chip-btn" id="home-btn">Home</button>
+          <button type="button" class="chip-btn" id="here-btn">Here</button>
         </div>
       </label>
       <label class="field">
@@ -296,20 +384,18 @@ function renderPlanForm() {
     </section>
 
     <section class="card">
-      <h2 class="card-title">Battery & range</h2>
       <label class="field slider-field">
         <span>Starting charge <strong id="start-soc-val">${formatPct(s.startSoc)}</strong></span>
         <input id="start-soc" type="range" min="10" max="100" step="5" value="${s.startSoc}" />
       </label>
       <label class="field slider-field">
-        <span>Real-world full range (100%) <strong id="full-range-val">${formatMi(s.fullRangeMi)}</strong></span>
+        <span>Full range at 100% <strong id="full-range-val">${formatMi(s.fullRangeMi)}</strong></span>
         <input id="full-range" type="range" min="150" max="320" step="5" value="${s.fullRangeMi}" />
       </label>
       <label class="field slider-field">
-        <span>Range comfort (max leg) <strong id="range-comfort-val">${formatMi(s.rangeComfortMi)}</strong></span>
+        <span>Range comfort (max leg) <strong id="range-comfort-val">${formatMi(s.rangeComfortMi)}</strong> · first leg ~<strong id="reach-hint">${formatMi(maxReach)}</strong></span>
         <input id="range-comfort" type="range" min="80" max="260" step="5" value="${s.rangeComfortMi}" />
       </label>
-      <p class="field-hint">First leg max ~<strong id="reach-hint">${formatMi(maxReach)}</strong> at current settings.</p>
       <label class="field slider-field">
         <span>Charge to at each stop <strong id="charge-target-val">${formatPct(s.chargeTargetSoc)}</strong></span>
         <input id="charge-target" type="range" min="60" max="95" step="5" value="${s.chargeTargetSoc}" />
@@ -325,13 +411,12 @@ function renderPlanForm() {
     </section>
 
     <section class="card">
-      <h2 class="card-title">Charging preferences</h2>
       <div class="checks">
         ${CHARGE_NETWORKS.map(
           (n) => `
-        <label>
+        <label title="${escapeHtml(n.hint ?? "")}">
           <input id="net-${n.id}" type="checkbox" ${s.networks[n.id] ? "checked" : ""} />
-          <span>${escapeHtml(n.label)}${n.hint ? `<span class="network-hint">${escapeHtml(n.hint)}</span>` : ""}</span>
+          <span>${escapeHtml(n.label)}</span>
         </label>`
         ).join("")}
       </div>
@@ -340,7 +425,7 @@ function renderPlanForm() {
         <input id="max-detour" type="range" min="1" max="15" step="0.5" value="${s.maxDetourMi}" />
       </label>
       <label class="field slider-field">
-        <span>Est. charge time per stop <strong id="charge-minutes-val">${s.chargeMinPerStop} min</strong></span>
+        <span>Charge time per stop <strong id="charge-minutes-val">${s.chargeMinPerStop} min</strong></span>
         <input id="charge-minutes" type="range" min="12" max="45" step="1" value="${s.chargeMinPerStop}" />
       </label>
     </section>
@@ -353,31 +438,48 @@ function renderPlanForm() {
 
 function renderResults() {
   if (!state.draft) return "";
-  const { candidates, selectedIds, validation, route } = state.draft;
+  const { validation, route } = state.draft;
   const v = validation;
+  const selected = getOrderedSelected();
+  const nextCandidates = getNextCandidates();
+  const legNum = selected.length + 1;
+  const reachDest = canReachDestinationNow();
 
-  const candidateRows = candidates
-    .map((c) => {
-      const on = selectedIds.includes(c.id);
-      const arrivalPreview = previewArrivalSoc(c);
-      return `
-        <label class="candidate ${on ? "selected" : ""}">
-          <input type="checkbox" data-id="${c.id}" ${on ? "checked" : ""} />
-          <div class="candidate-body">
+  const chainRows = selected.length
+    ? selected
+        .map(
+          (c, i) => `
+        <div class="chain-item">
+          <span class="chain-num">${i + 1}</span>
+          <div class="chain-body">
             <strong>${escapeHtml(c.name)}</strong>
-            <span class="badge badge-${c.network}">${escapeHtml(networkShort(c.network))}</span>
-            <p>Mile ${Math.round(c.routeMi)} on route · ${c.detourMi.toFixed(1)} mi detour${arrivalPreview != null ? ` · arrive ~${formatPct(arrivalPreview)}` : ""}</p>
+            <p>Mile ${Math.round(c.routeMi)} · ${c.detourMi.toFixed(1)} mi off route</p>
           </div>
-        </label>`;
-    })
-    .join("");
+          <button type="button" class="chain-undo" data-undo="${c.id}" aria-label="Remove stop">✕</button>
+        </div>`
+        )
+        .join("")
+    : `<p class="muted-inline">No stops chosen yet — pick below.</p>`;
+
+  const nextRows = nextCandidates.length
+    ? nextCandidates
+        .map((c) => {
+          const preview = previewArrivalForNext(c);
+          return `
+        <button type="button" class="candidate-pick" data-pick="${c.id}">
+          <strong>${escapeHtml(c.name)}</strong>
+          <p>Mile ${Math.round(c.routeMi)} · ${c.detourMi.toFixed(1)} mi off route · arrive ~${formatPct(preview)}</p>
+        </button>`;
+        })
+        .join("")
+    : `<p class="muted-inline">${reachDest ? "No more stops needed — you can reach destination." : "No feasible stops in range. Undo a stop or replan with different settings."}</p>`;
 
   const timeline = v.timeline
     .map((row) => {
       const info =
         row.kind === "charge"
-          ? `${formatMi(row.legMi)} → arrive ${formatPct(row.arrivalSoc)} · +${row.chargeMin}m charge`
-          : `${formatMi(row.legMi)} → arrive ${formatPct(row.arrivalSoc)}`;
+          ? `${formatMi(row.legMi)} → ${formatPct(row.arrivalSoc)} · +${row.chargeMin}m`
+          : `${formatMi(row.legMi)} → ${formatPct(row.arrivalSoc)}`;
       const title = row.kind === "charge" ? row.stop.name : state.draft.end.label;
       return `<li class="${row.arrivalSoc < (row.kind === "charge" ? state.draft.params.minArrivalSoc : state.draft.params.minDestinationSoc) ? "warn" : ""}"><strong>${escapeHtml(title)}</strong><span>${info}</span></li>`;
     })
@@ -385,39 +487,38 @@ function renderResults() {
 
   const issues = v.issues.length
     ? `<ul class="issues">${v.issues.map((i) => `<li>${escapeHtml(i)}</li>`).join("")}</ul>`
-    : `<p class="ok-msg">Plan looks reachable with selected stops.</p>`;
+    : `<p class="ok-msg">Plan looks reachable.</p>`;
 
   return `
     <section class="card results">
-      <h2 class="card-title">Route summary</h2>
       <div class="stats">
         <div><span>Distance</span><strong>${formatMi(route.totalMi)}</strong></div>
         <div><span>Drive</span><strong>${formatMin(v.summary.driveMin)}</strong></div>
         <div><span>Charging</span><strong>${formatMin(v.summary.chargeMin)}</strong></div>
-        <div><span>Total est.</span><strong>${formatMin(v.summary.totalMin)}</strong></div>
+        <div><span>Total</span><strong>${formatMin(v.summary.totalMin)}</strong></div>
       </div>
     </section>
 
     <section class="card">
-      <h2 class="card-title">Timeline & guardrails</h2>
       <ul class="timeline">${timeline}</ul>
       ${issues}
     </section>
 
     <section class="card">
-      <h2 class="card-title">Charging stops (${selectedIds.length} selected)</h2>
-      <p class="field-hint">Toggle stops — invalid plans can't be committed.</p>
-      <div class="candidate-list">${candidateRows || "<p class='field-hint'>No stations matched your filters along this route.</p>"}</div>
+      <div class="chain-list">${chainRows}</div>
+    </section>
+
+    <section class="card">
+      <p class="leg-label">Stop ${legNum}${reachDest && !nextCandidates.length ? " — ready to finish" : ""}</p>
+      <div class="candidate-list">${nextRows}</div>
     </section>
   `;
 }
 
-function previewArrivalSoc(candidate) {
-  if (!state.draft?.validation) return null;
-  const row = state.draft.validation.timeline.find(
-    (t) => t.kind === "charge" && t.stop.id === candidate.id
-  );
-  return row?.arrivalSoc ?? null;
+function previewArrivalForNext(candidate) {
+  const { posMi, soc } = getPlanningLeg();
+  const legMi = candidate.routeMi - posMi;
+  return socAfterLegMi(soc, legMi, state.draft.params.fullRangeMi);
 }
 
 function renderSaved() {
@@ -448,9 +549,11 @@ function updateBottomNav() {
   if (!show) return;
 
   const commit = $("#commit-btn");
+  const saveBtn = $("#save-plan-btn");
   const valid = state.draft.validation?.valid;
   commit.disabled = !valid;
-  commit.textContent = valid ? "Commit plan → Google Maps" : "Fix plan to commit";
+  saveBtn.disabled = !valid;
+  commit.textContent = valid ? "Open in Google Maps" : "Fix plan first";
 }
 
 function render() {
@@ -485,11 +588,15 @@ function bindPlanEvents() {
   });
 
   $("#home-btn")?.addEventListener("click", applyHomeShortcut);
+  $("#here-btn")?.addEventListener("click", setStartFromHere);
   $("#find-btn")?.addEventListener("click", findRouteAndChargers);
   $("#road-reset-btn")?.addEventListener("click", resetFromRoad);
 
-  document.querySelectorAll(".candidate input[type=checkbox]").forEach((cb) => {
-    cb.addEventListener("change", () => toggleCandidate(cb.dataset.id));
+  document.querySelectorAll("[data-pick]").forEach((btn) => {
+    btn.addEventListener("click", () => selectNextCandidate(btn.dataset.pick));
+  });
+  document.querySelectorAll("[data-undo]").forEach((btn) => {
+    btn.addEventListener("click", () => undoFromStop(btn.dataset.undo));
   });
 }
 
@@ -535,17 +642,7 @@ function init() {
   });
 
   $("#commit-btn").addEventListener("click", commitPlan);
-  $("#copy-btn")?.addEventListener("click", () => {
-    if (!state.draft?.validation?.valid) return;
-    const selected = state.draft.candidates.filter((c) =>
-      state.draft.selectedIds.includes(c.id)
-    );
-    const url = googleMapsDirUrl(
-      buildCommittedStops(state.draft.start, state.draft.end, selected)
-    );
-    navigator.clipboard?.writeText(url);
-    showToast("Link copied");
-  });
+  $("#save-plan-btn").addEventListener("click", savePlanOnly);
 
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js").catch(() => {});
