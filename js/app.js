@@ -738,6 +738,7 @@ function init() {
   $("#scroll-top-btn")?.addEventListener("click", scrollToTop);
   window.addEventListener("scroll", updateScrollFab, { passive: true });
 
+  render();
   renderVersionBadge();
   registerServiceWorker();
 }
