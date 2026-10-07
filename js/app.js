@@ -37,7 +37,7 @@ import {
 } from "./storage.js";
 import { speechSupported, ensureMicAccess, listenForSpeech } from "./voice.js";
 
-export const APP_VERSION = "2.3.1";
+export const APP_VERSION = "2.3.2";
 
 const state = {
   view: "plan",
@@ -214,9 +214,10 @@ function getPlanningLeg() {
 }
 
 function sortCandidatesForPick(list) {
-  return list.sort((a, b) => {
+  return list.slice().sort((a, b) => {
     const byDetour = a.detourMi - b.detourMi;
-    if (Math.abs(byDetour) > 0.01) return byDetour;
+    if (byDetour !== 0) return byDetour;
+    // Shortest detour first, then lowest estimated arrival SOC first
     return previewArrivalForNext(a) - previewArrivalForNext(b);
   });
 }
