@@ -4,8 +4,8 @@
   "description": "Plan EV road trips with charging stops and send to Google Maps",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#f5f7fa",
-  "theme_color": "#1565d8",
+  "background_color": "#f0f0f0",
+  "theme_color": "#005ea2",
   "orientation": "portrait-primary",
   "icons": [
     {

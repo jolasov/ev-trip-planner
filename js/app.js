@@ -337,8 +337,8 @@ async function resetFromRoad() {
   }
 }
 
-function applyHomeShortcut() {
-  $("#start-input").value = state.settings.homeShortcut;
+function defaultStartAddress() {
+  return state.draft?.start?.address || state.settings.homeShortcut || "";
 }
 
 async function setStartFromHere() {
@@ -371,11 +371,8 @@ function renderPlanForm() {
     <section class="card">
       <label class="field">
         <span>Start</span>
-        <input id="start-input" type="text" placeholder="Address or place" value="${escapeHtml(state.draft?.start?.address || "")}" autocomplete="street-address" />
-        <div class="start-shortcuts">
-          <button type="button" class="shortcut-btn" id="home-btn">Home</button>
-          <button type="button" class="shortcut-btn" id="current-btn">Current</button>
-        </div>
+        <input id="start-input" type="text" placeholder="Address or place" value="${escapeHtml(defaultStartAddress())}" autocomplete="street-address" />
+        <button type="button" class="current-btn" id="current-btn">Current</button>
       </label>
       <label class="field">
         <span>Destination</span>
@@ -587,7 +584,6 @@ function bindPlanEvents() {
     $(`#${id}`)?.addEventListener("input", updateReachHint);
   });
 
-  $("#home-btn")?.addEventListener("click", applyHomeShortcut);
   $("#current-btn")?.addEventListener("click", setStartFromHere);
   $("#find-btn")?.addEventListener("click", findRouteAndChargers);
   $("#road-reset-btn")?.addEventListener("click", resetFromRoad);
@@ -649,7 +645,6 @@ function init() {
   }
 
   render();
-  if (!state.draft?.start?.address) applyHomeShortcut();
 }
 
 init();
