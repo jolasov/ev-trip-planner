@@ -93,13 +93,28 @@ body {
   font: inherit;
 }
 
-.input-row {
-  display: flex;
+.start-shortcuts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
+  margin-top: 10px;
 }
 
-.input-row input {
-  flex: 1;
+.shortcut-btn {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.shortcut-btn:active {
+  background: rgba(21, 101, 216, 0.1);
+  border-color: rgba(21, 101, 216, 0.4);
 }
 
 .slider-field input[type="range"] {

@@ -3,9 +3,15 @@ import {
   detectNetwork,
   routeDistanceAtPoint,
   networkLabel,
+  haversineMi,
 } from "./util.js";
 
 const UA = "EVTripPlanner/2.0 (personal; github.com/jolasov/ev-trip-planner)";
+
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+];
 
 export async function geocode(query) {
   const url = new URL("https://nominatim.openstreetmap.org/search");
@@ -61,42 +67,87 @@ export async function fetchRoute(waypoints) {
   };
 }
 
-function routeBbox(polyline, bufferMi) {
-  const bufferDeg = bufferMi / 69;
-  let south = Infinity;
-  let north = -Infinity;
-  let west = Infinity;
-  let east = -Infinity;
-  for (const p of polyline) {
-    south = Math.min(south, p.lat - bufferDeg);
-    north = Math.max(north, p.lat + bufferDeg);
-    west = Math.min(west, p.lon - bufferDeg);
-    east = Math.max(east, p.lon + bufferDeg);
-  }
-  return { south, west, north, east };
-}
-
 function uidFromCoords(lat, lon) {
   return `cs-${lat.toFixed(4)}-${lon.toFixed(4)}`;
 }
 
-export async function fetchChargingCandidates(polyline, { maxDetourMi, networks }) {
-  const { south, west, north, east } = routeBbox(polyline, maxDetourMi + 2);
-  const query = `
-[out:json][timeout:90];
-(
-  node["amenity"="charging_station"](${south},${west},${north},${east});
-  way["amenity"="charging_station"](${south},${west},${north},${east});
-);
-out center tags;
-`;
+function pointAtDistance(polyline, cum, targetMi) {
+  if (targetMi <= 0) return polyline[0];
+  const total = cum[cum.length - 1];
+  if (targetMi >= total) return polyline[polyline.length - 1];
 
-  const res = await fetch("https://overpass-api.de/api/interpreter", {
-    method: "POST",
-    body: query,
-  });
-  if (!res.ok) throw new Error("Charging station lookup failed");
-  const data = await res.json();
+  for (let i = 1; i < cum.length; i++) {
+    if (cum[i] >= targetMi) {
+      const span = cum[i] - cum[i - 1];
+      const t = span > 0 ? (targetMi - cum[i - 1]) / span : 0;
+      return {
+        lat: polyline[i - 1].lat + t * (polyline[i].lat - polyline[i - 1].lat),
+        lon: polyline[i - 1].lon + t * (polyline[i].lon - polyline[i - 1].lon),
+      };
+    }
+  }
+  return polyline[polyline.length - 1];
+}
+
+function sampleRoutePoints(polyline, intervalMi = 40) {
+  const cum = buildCumulativeDistances(polyline);
+  const total = cum[cum.length - 1];
+  const points = [polyline[0]];
+
+  for (let d = intervalMi; d < total; d += intervalMi) {
+    points.push(pointAtDistance(polyline, cum, d));
+  }
+
+  const last = polyline[polyline.length - 1];
+  const prev = points[points.length - 1];
+  if (haversineMi(prev, last) > 5) points.push(last);
+
+  return points;
+}
+
+function buildOverpassQuery(samplePoints, radiusM) {
+  const aroundClauses = samplePoints
+    .map(
+      (p) => `
+  node["amenity"="charging_station"](around:${radiusM},${p.lat},${p.lon});
+  way["amenity"="charging_station"](around:${radiusM},${p.lat},${p.lon});`
+    )
+    .join("");
+
+  return `[out:json][timeout:60];(${aroundClauses});out center tags;`;
+}
+
+async function queryOverpass(query) {
+  let lastErr = null;
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `data=${encodeURIComponent(query)}`,
+      });
+      if (!res.ok) {
+        lastErr = new Error(`Overpass HTTP ${res.status}`);
+        continue;
+      }
+      const data = await res.json();
+      if (data.remark && !data.elements?.length) {
+        lastErr = new Error(data.remark);
+        continue;
+      }
+      return data;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr ?? new Error("Charging station lookup failed");
+}
+
+export async function fetchChargingCandidates(polyline, { maxDetourMi, networks }) {
+  const radiusM = Math.round(Math.max(maxDetourMi + 2, 5) * 1609.34);
+  const samplePoints = sampleRoutePoints(polyline, 40);
+  const query = buildOverpassQuery(samplePoints, radiusM);
+  const data = await queryOverpass(query);
 
   const enabled = new Set(
     Object.entries(networks)

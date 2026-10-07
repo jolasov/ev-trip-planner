@@ -372,9 +372,9 @@ function renderPlanForm() {
       <label class="field">
         <span>Start</span>
         <input id="start-input" type="text" placeholder="Address or place" value="${escapeHtml(state.draft?.start?.address || "")}" autocomplete="street-address" />
-        <div class="chip-row">
-          <button type="button" class="chip-btn" id="home-btn">Home</button>
-          <button type="button" class="chip-btn" id="here-btn">Here</button>
+        <div class="start-shortcuts">
+          <button type="button" class="shortcut-btn" id="home-btn">Home</button>
+          <button type="button" class="shortcut-btn" id="current-btn">Current</button>
         </div>
       </label>
       <label class="field">
@@ -588,7 +588,7 @@ function bindPlanEvents() {
   });
 
   $("#home-btn")?.addEventListener("click", applyHomeShortcut);
-  $("#here-btn")?.addEventListener("click", setStartFromHere);
+  $("#current-btn")?.addEventListener("click", setStartFromHere);
   $("#find-btn")?.addEventListener("click", findRouteAndChargers);
   $("#road-reset-btn")?.addEventListener("click", resetFromRoad);
 
