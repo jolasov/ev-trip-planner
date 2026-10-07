@@ -1,6 +1,7 @@
 const TRIPS_KEY = "ev-trip-planner-trips-v2";
 const SETTINGS_KEY = "ev-trip-planner-settings-v3";
 const DRAFT_KEY = "ev-trip-planner-draft-v2";
+const LOCATION_KEY = "ev-trip-planner-last-location-v1";
 
 export function loadSettings(defaults) {
   try {
@@ -59,4 +60,20 @@ export function saveCommittedTrip(trip) {
 
 export function deleteTrip(tripId) {
   saveTrips(loadTrips().filter((t) => t.id !== tripId));
+}
+
+export function loadCachedLocation() {
+  try {
+    const raw = localStorage.getItem(LOCATION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveCachedLocation(loc) {
+  localStorage.setItem(
+    LOCATION_KEY,
+    JSON.stringify({ ...loc, savedAt: new Date().toISOString() })
+  );
 }

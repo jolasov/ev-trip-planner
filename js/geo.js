@@ -238,7 +238,7 @@ export function enrichCandidates(candidates, polyline, maxDetourMi) {
   return dedupeStations(enriched).sort((a, b) => a.routeMi - b.routeMi);
 }
 
-export async function getCurrentPosition() {
+export async function getCurrentPosition({ maximumAge = 900000 } = {}) {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(new Error("Geolocation not supported"));
@@ -252,7 +252,7 @@ export async function getCurrentPosition() {
           accuracyM: pos.coords.accuracy,
         }),
       (err) => reject(new Error(err.message || "Could not get location")),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge }
     );
   });
 }

@@ -14,27 +14,26 @@
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icons/icon.svg" />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=8" />
   </head>
   <body>
     <div id="app">
-      <nav class="tabs">
-        <button id="tab-plan" class="tab active" type="button">Plan</button>
-        <button id="tab-saved" class="tab" type="button">Saved</button>
+      <nav class="tabs-bar">
+        <div class="tabs">
+          <button id="tab-plan" class="tab active" type="button">Plan</button>
+          <button id="tab-saved" class="tab" type="button">Saved</button>
+        </div>
+        <span id="app-version" class="app-version"></span>
       </nav>
 
       <main id="main"></main>
 
       <nav id="bottom-nav" class="bottom-nav">
-        <div id="plan-actions">
-          <button id="commit-btn" class="primary-btn" type="button" disabled>
-            Open in Google Maps
-          </button>
-          <button id="save-plan-btn" class="secondary-btn full-width" type="button">
-            Save plan
-          </button>
+        <div id="plan-actions" class="bottom-row">
+          <button id="commit-btn" class="primary-btn" type="button" disabled>Maps</button>
+          <button id="save-plan-btn" class="secondary-btn" type="button">Save</button>
         </div>
-        <div class="bottom-quick">
+        <div class="bottom-row bottom-quick">
           <button id="goto-saved-btn" class="secondary-btn" type="button">Saved</button>
           <button id="scroll-top-nav" class="secondary-btn" type="button">Top</button>
         </div>
@@ -50,6 +49,6 @@
 
     <div id="toast" class="toast hidden" role="status"></div>
 
-    <script type="module" src="js/app.js?v=7"></script>
+    <script type="module" src="js/app.js?v=8"></script>
   </body>
 </html>

@@ -31,7 +31,11 @@ import {
   loadTrips,
   saveCommittedTrip,
   deleteTrip,
+  loadCachedLocation,
+  saveCachedLocation,
 } from "./storage.js";
+
+export const APP_VERSION = "1.8";
 import { speechSupported, listenForSpeech } from "./voice.js";
 
 const state = {
@@ -320,6 +324,7 @@ async function resetFromRoad() {
   try {
     const pos = await getCurrentPosition();
     const loc = await reverseGeocode(pos.lat, pos.lon);
+    saveCachedLocation(loc);
 
     const socRaw = prompt(
       "Current battery %?",
@@ -352,19 +357,30 @@ function defaultStartAddress() {
   return state.draft?.start?.address || state.settings.homeShortcut || "";
 }
 
+async function applyLocationToStart(loc, toastMsg) {
+  $("#start-input").value = loc.address;
+  saveCachedLocation(loc);
+  if (state.draft) {
+    state.draft.start = loc;
+    saveDraft(state.draft);
+  }
+  if (toastMsg) showToast(toastMsg);
+}
+
 async function setStartFromHere() {
-  setLoading(true, "Getting location…");
+  const cached = loadCachedLocation();
+  if (cached?.address) {
+    await applyLocationToStart(cached, null);
+  }
+
+  setLoading(true, "Updating location…");
   try {
-    const pos = await getCurrentPosition();
+    const pos = await getCurrentPosition({ maximumAge: 900000 });
     const loc = await reverseGeocode(pos.lat, pos.lon);
-    $("#start-input").value = loc.address;
-    if (state.draft) {
-      state.draft.start = loc;
-      saveDraft(state.draft);
-    }
-    showToast("Start set to current location");
+    await applyLocationToStart(loc, cached?.address ? "Location updated" : "Start set to current location");
   } catch (err) {
-    showToast(err.message || "Could not get location");
+    if (cached?.address) showToast("Using last known location");
+    else showToast(err.message || "Could not get location");
   } finally {
     setLoading(false);
   }
@@ -620,7 +636,7 @@ function updateBottomNav() {
       const valid = state.draft.validation?.valid;
       commit.disabled = !valid;
       saveBtn.disabled = !valid;
-      commit.textContent = valid ? "Open in Google Maps" : "Fix plan first";
+      commit.textContent = valid ? "Maps" : "Fix plan";
     }
   } else {
     nav.classList.add("hidden");
@@ -722,11 +738,34 @@ function init() {
   $("#scroll-top-btn")?.addEventListener("click", scrollToTop);
   window.addEventListener("scroll", updateScrollFab, { passive: true });
 
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
-  }
+  renderVersionBadge();
+  registerServiceWorker();
+}
 
-  render();
+function renderVersionBadge() {
+  const el = $("#app-version");
+  if (el) el.textContent = `v${APP_VERSION}`;
+}
+
+async function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.register("./sw.js?v=8");
+    await reg.update();
+    if (reg.waiting) {
+      showToast("Update ready — close and reopen the app");
+    }
+    reg.addEventListener("updatefound", () => {
+      const worker = reg.installing;
+      worker?.addEventListener("statechange", () => {
+        if (worker.state === "installed" && navigator.serviceWorker.controller) {
+          showToast("Updated — reopen for latest version");
+        }
+      });
+    });
+  } catch {
+    /* offline or unsupported */
+  }
 }
 
 init();
