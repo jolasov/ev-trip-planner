@@ -238,6 +238,19 @@ export function enrichCandidates(candidates, polyline, maxDetourMi) {
   return dedupeStations(enriched).sort((a, b) => a.routeMi - b.routeMi);
 }
 
+function geolocationErrorMessage(err) {
+  if (err?.code === 1) {
+    return "Location blocked — iPhone Settings → Chrome → Location → While Using the App";
+  }
+  if (err?.code === 2) return "Location unavailable — try again outdoors or on cellular";
+  if (err?.code === 3) return "Location timed out — try again";
+  const msg = err?.message ?? "";
+  if (/denied|permission/i.test(msg)) {
+    return "Location blocked — iPhone Settings → Chrome → Location → While Using the App";
+  }
+  return msg || "Could not get location";
+}
+
 export async function getCurrentPosition({ maximumAge = 900000 } = {}) {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -251,7 +264,7 @@ export async function getCurrentPosition({ maximumAge = 900000 } = {}) {
           lon: pos.coords.longitude,
           accuracyM: pos.coords.accuracy,
         }),
-      (err) => reject(new Error(err.message || "Could not get location")),
+      (err) => reject(new Error(geolocationErrorMessage(err))),
       { enableHighAccuracy: true, timeout: 15000, maximumAge }
     );
   });

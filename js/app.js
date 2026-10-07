@@ -37,7 +37,7 @@ import {
 } from "./storage.js";
 import { speechSupported, ensureMicAccess, listenForSpeech } from "./voice.js";
 
-export const APP_VERSION = "2.3";
+export const APP_VERSION = "2.3.1";
 
 const state = {
   view: "plan",
