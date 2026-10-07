@@ -1,59 +1,52 @@
 # EV Trip Planner
 
-A personal, mobile-first web app for planning EV road trips with charging stops — then sending the route to **Google Maps** with one tap. Includes **return trip** support.
+Personal mobile web app for **conservative EV road-trip planning** — set your real-world range, pick charging networks, choose stops with guardrails, then **commit to Google Maps**.
 
-Your Kettering → Ballston trip is pre-loaded.
+**Live:** [https://jolasov.github.io/ev-trip-planner/](https://jolasov.github.io/ev-trip-planner/)
 
 ## Features
 
-- Add, edit, reorder, and delete stops
-- Tag charging stops (Electrify America, ChargePoint)
-- **Open in Google Maps** — full route with all waypoints
-- **Return trip → Maps** — reversed route without losing your outbound plan
-- **Save return as new trip** — edit the drive home separately
-- Trips persist in your browser (`localStorage`) — works offline after first load
+### Plan from scratch (nothing pre-loaded)
+- **Home** shortcut defaults start to `4800 Bofield Dr, Kettering, OH` — change anytime
+- Any start / destination
+- **Starting battery %**, real-world full range, range-comfort slider
+- **Network filters:** Electrify America, ChargePoint, Other (OpenStreetMap)
+- **Max detour** off the driving route for each candidate charger
+- Finds chargers along your route, shows **mile marker + detour distance**
+- **Auto-selects** a conservative stop sequence; toggle stops manually
+- **Timeline** with estimated arrival SOC at each leg
+- **Guardrails:** won't let you commit a plan that violates your minimum SOC rules
+- **Total time estimate:** driving + charging
 
-## Use on your phone
+### On the road
+- **Reset from current location** — GPS start + enter current battery %, re-route to destination
 
-### Option A — GitHub Pages (recommended)
+### Commit
+- Saves trip locally
+- Opens full multi-stop route in **Google Maps**
+- **Saved** tab for past trips + return → Maps
 
-1. Push this repo to GitHub (see below).
-2. In the repo: **Settings → Pages → Build from branch → `main` / root**.
-3. Open the Pages URL on your phone (e.g. `https://YOUR_USER.github.io/ev-trip-planner/`).
-4. **Safari:** Share → **Add to Home Screen**
-5. **Chrome:** Menu → **Install app** or **Add to Home screen**
+## Phone install
 
-### Option B — Open the file locally
+Open the live URL → **Add to Home Screen** (Safari) or **Install app** (Chrome).
 
-On your PC, double-click `index.html` to use it in a browser. For your phone, GitHub Pages (Option A) is easier.
+## Data sources (free, no API keys)
 
-## Push to GitHub
+- **Routing:** OSRM
+- **Geocoding:** OpenStreetMap Nominatim
+- **Chargers:** OpenStreetMap via Overpass
+
+Station coverage depends on OSM data quality. Always verify chargers in the Electrify America / ChargePoint app before committing.
+
+## Local development
+
+Static site — open `index.html` or serve the folder with any static server. ES modules require http(s), not `file://`.
+
+## Repo
 
 ```powershell
 cd C:\Users\janka\Projects\ev-trip-planner
-git add -A
-git commit -m "Add EV trip planner personal app"
-gh repo create ev-trip-planner --public --source=. --push
+git pull
 ```
 
-If the repo name is taken, pick another (e.g. `jean-ev-trips`).
-
-## Edit with Cursor on your phone
-
-Open the project in Cursor (same GitHub repo). Edit `app.js` to change defaults, or adjust stops in the app UI while traveling.
-
-## Google Maps behavior
-
-- **Open in Google Maps** builds a multi-stop driving route from your stop list in order.
-- On mobile, this should hand off to the Google Maps app.
-- **Return trip → Maps** reverses all stops (home becomes destination, etc.).
-
-## Project files
-
-| File | Purpose |
-|------|---------|
-| `index.html` | App shell |
-| `app.js` | Trip logic, Google Maps links, storage |
-| `styles.css` | Mobile UI |
-| `manifest.json` | Install-to-home-screen metadata |
-| `sw.js` | Offline cache for road-trip dead zones |
+Changes push to GitHub Pages automatically on `main`.

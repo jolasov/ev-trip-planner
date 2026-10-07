@@ -19,81 +19,36 @@
   <body>
     <div id="app">
       <header class="header">
-        <button id="back-btn" class="icon-btn hidden" type="button" aria-label="Back">
-          ←
-        </button>
         <div class="header-text">
-          <h1 id="page-title">EV Trip Planner</h1>
-          <p id="page-subtitle">Plan stops · Open in Google Maps</p>
+          <h1 id="page-title">Plan a trip</h1>
+          <p id="page-subtitle">Conservative EV routing</p>
         </div>
       </header>
+
+      <nav class="tabs">
+        <button id="tab-plan" class="tab active" type="button">Plan</button>
+        <button id="tab-saved" class="tab" type="button">Saved</button>
+      </nav>
 
       <main id="main"></main>
 
       <nav id="bottom-nav" class="bottom-nav hidden">
-        <button id="maps-btn" class="primary-btn" type="button">
-          Open in Google Maps
+        <button id="commit-btn" class="primary-btn" type="button" disabled>
+          Commit plan → Google Maps
         </button>
-        <div class="secondary-actions">
-          <button id="return-maps-btn" class="secondary-btn" type="button">
-            Return trip → Maps
-          </button>
-          <button id="copy-link-btn" class="secondary-btn" type="button">
-            Copy link
-          </button>
-        </div>
+        <button id="copy-btn" class="secondary-btn full-width" type="button" style="margin-top:8px">
+          Copy Maps link
+        </button>
       </nav>
+    </div>
+
+    <div id="loading" class="loading hidden" aria-live="polite">
+      <div class="spinner"></div>
+      <p class="loading-text">Working…</p>
     </div>
 
     <div id="toast" class="toast hidden" role="status"></div>
 
-    <dialog id="stop-dialog">
-      <form id="stop-form" method="dialog">
-        <h2 id="stop-dialog-title">Add stop</h2>
-        <label>
-          Label
-          <input id="stop-label" name="label" type="text" placeholder="e.g. EA Cambridge" required />
-        </label>
-        <label>
-          Address
-          <input
-            id="stop-address"
-            name="address"
-            type="text"
-            placeholder="Full street address"
-            required
-            autocomplete="street-address"
-          />
-        </label>
-        <label>
-          Stop type
-          <select id="stop-type" name="type">
-            <option value="start">Start</option>
-            <option value="charge">EV charge stop</option>
-            <option value="waypoint">Waypoint</option>
-            <option value="destination">Destination</option>
-          </select>
-        </label>
-        <label id="network-label">
-          Charging network
-          <select id="stop-network" name="network">
-            <option value="">—</option>
-            <option value="ea">Electrify America</option>
-            <option value="chargepoint">ChargePoint</option>
-            <option value="other">Other</option>
-          </select>
-        </label>
-        <label>
-          Notes (optional)
-          <textarea id="stop-notes" name="notes" rows="2" placeholder="Charge to 85%, 85% cap, etc."></textarea>
-        </label>
-        <div class="dialog-actions">
-          <button type="button" id="stop-cancel" class="secondary-btn">Cancel</button>
-          <button type="submit" class="primary-btn">Save stop</button>
-        </div>
-      </form>
-    </dialog>
-
-    <script src="app.js"></script>
+    <script type="module" src="js/app.js"></script>
   </body>
 </html>
