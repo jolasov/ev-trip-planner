@@ -2,6 +2,7 @@ const TRIPS_KEY = "ev-trip-planner-trips-v2";
 const SETTINGS_KEY = "ev-trip-planner-settings-v3";
 const DRAFT_KEY = "ev-trip-planner-draft-v2";
 const LOCATION_KEY = "ev-trip-planner-last-location-v1";
+const MIC_KEY = "ev-trip-planner-mic-granted-v1";
 
 export function loadSettings(defaults) {
   try {
@@ -76,4 +77,20 @@ export function saveCachedLocation(loc) {
     LOCATION_KEY,
     JSON.stringify({ ...loc, savedAt: new Date().toISOString() })
   );
+}
+
+export function loadMicGranted() {
+  try {
+    return localStorage.getItem(MIC_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function saveMicGranted() {
+  try {
+    localStorage.setItem(MIC_KEY, "1");
+  } catch {
+    /* private browsing */
+  }
 }

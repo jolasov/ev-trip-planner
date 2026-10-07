@@ -1,4 +1,4 @@
-const CACHE = "ev-trip-planner-v9";
+const CACHE = "ev-trip-planner-v10";
 
 self.addEventListener("install", () => {
   self.skipWaiting();

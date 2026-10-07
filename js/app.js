@@ -33,10 +33,11 @@ import {
   deleteTrip,
   loadCachedLocation,
   saveCachedLocation,
+  saveMicGranted,
 } from "./storage.js";
 
-export const APP_VERSION = "2.0";
-import { speechSupported, listenForSpeech } from "./voice.js";
+export const APP_VERSION = "2.1";
+import { speechSupported, ensureMicAccess, listenForSpeech } from "./voice.js";
 
 const state = {
   view: "plan",
@@ -391,11 +392,19 @@ async function fillFieldFromVoice(field) {
     showToast("Voice needs Chrome (not all iOS browsers)");
     return;
   }
+  const input = field === "start" ? $("#start-input") : $("#end-input");
   try {
+    showToast("Allow mic if asked…");
+    await ensureMicAccess();
+    saveMicGranted();
     showToast("Listening…");
-    const text = await listenForSpeech();
-    const input = field === "start" ? $("#start-input") : $("#end-input");
+    const text = await listenForSpeech({
+      onInterim: (partial) => {
+        if (input) input.value = partial;
+      },
+    });
     if (input) input.value = text;
+    saveMicGranted();
     showToast("Got it");
   } catch (err) {
     showToast(err.message || "Voice failed");
@@ -745,7 +754,7 @@ function renderVersionBadge() {
 async function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   try {
-    const reg = await navigator.serviceWorker.register("./sw.js?v=9");
+    const reg = await navigator.serviceWorker.register("./sw.js?v=10");
     await reg.update();
     if (reg.waiting) {
       showToast("Update ready — close and reopen the app");
